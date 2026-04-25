@@ -1,118 +1,147 @@
-# project-archive
+# 디자인 초안 자동화 키트
 
-Claude Code에서 사용할 수 있는 포트폴리오 케이스 스터디 자동 생성 스킬입니다.  
-프로젝트 메모나 Notion 링크를 입력하면 **Problem / Process / Outcome** 구조의 케이스 스터디 초안을 자동으로 작성해줍니다.
+Claude Code를 활용해 **3-에이전트 프레임워크** 기반으로 와이어프레임 초안을 자동 생성하는 프로덕트 디자이너용 템플릿입니다.
 
-## 주요 기능
+## 이 키트가 하는 일
 
-- 프로젝트 메모 → 케이스 스터디 초안 자동 생성
-- 초안 작성 전 빠진 맥락만 골라 사전 질문 (최대 3개)
-- Figma 링크 첨부 시 디자인 컨텍스트 자동 추출
-- Notion 링크 첨부 시 페이지 내용 자동 읽기
-- JD(채용공고) 첨부 시 해당 회사 기준으로 강조점 자동 조정
-- 품질 체크리스트 및 포트폴리오 리뷰 자동 제공
-- Notion 데이터베이스 또는 Markdown 파일로 export
-- 포트폴리오 전체 일관성 감사 (`/archive audit`)
-
-## 전체 명령어
-
-| 명령어 | 설명 |
-|--------|------|
-| `/archive` | 케이스 스터디 자동 생성 |
-| `/archive setup` | 사용자 프로필 최초 설정 (1회) |
-| `/archive jd:[링크 또는 텍스트]` | JD 기반 맞춤 버전 생성 |
-| `/archive audit` | 저장된 케이스 스터디 전체 감사 |
-
-## 설치 방법
-
-### 1. 스킬 파일 복사
-
-모든 프로젝트에서 공통으로 사용하려면 **개인 스킬 디렉토리**에 설치합니다.
-
-```bash
-# 개인 스킬 디렉토리 생성 (없는 경우)
-mkdir -p ~/.claude/skills
-
-# 스킬 파일 복사 (모든 프로젝트에서 사용 가능)
-cp .claude/skills/archive.md ~/.claude/skills/archive.md
-```
-
-특정 프로젝트에만 설치하려면:
-
-```bash
-cp .claude/skills/archive.md [프로젝트 경로]/.claude/skills/archive.md
-```
-
-### 2. 프로필 설정 (권장)
-
-스킬 설치 후 아래 명령으로 프로필을 한 번 설정해두면 이후 케이스 스터디마다 역할·도구·협업 방식이 자동 반영됩니다.
+에픽/디스커버리 문서를 넣으면 → AI가 3가지 관점(비즈니스·경쟁사·도메인)으로 분석한 뒤 → 구조화된 마크다운 초안을 자동 생성합니다.
 
 ```
-/archive setup
+인풋 (에픽/디스커버리 문서)
+    ↓
+Agent A: 비즈니스 컨텍스트 분석
+    ↓
+Agent B: 경쟁사/시장 벤치마크
+    ↓
+Agent C: 도메인 정책 검증
+    ↓
+아웃풋 (마크다운 초안 → Stitch → Figma)
 ```
 
-프로필 파일은 `~/.claude/skills/archive-profile.md`에 저장됩니다.  
-Notion 연동을 사용하려면 이 파일의 Notion 설정 항목에 실제 ID를 입력하세요.
+## 빠른 시작 (5분)
+
+### 1. 파일 복사
 
 ```
-YOUR_DATA_SOURCE_ID        → 업무 아카이빙 DB의 data source ID
-YOUR_PORTFOLIO_DATABASE_ID → 포트폴리오 저장 DB의 ID
-YOUR_WORKSPACE             → Notion 워크스페이스 이름
+your-project/
+├── .claude/
+│   └── rules/
+│       └── design-draft.md          ← ① 행동 규칙 (복사)
+├── references/
+│   ├── design-draft-template.md     ← ② 아웃풋 포맷 (복사)
+│   ├── ux-checklist.md              ← ③ UX 검증 기준 (복사, 공통)
+│   ├── domain-policy.md             ← ④ 도메인 정책 (직접 작성)
+│   └── competitor-data.csv          ← ⑤ 경쟁사 데이터 (직접 준비)
+└── outputs/                         ← 생성물 저장 폴더
 ```
 
-Notion DB ID 확인 방법: Notion 페이지 URL의 마지막 32자리 문자열이 ID입니다.
+### 2. 커스터마이징
 
+`design-draft.md`에서 아래 3곳만 자기 프로젝트에 맞게 수정:
+
+| 항목 | 수정 내용 | 예시 |
+|------|----------|------|
+| Agent B 데이터소스 | 경쟁사 분석용 데이터 경로 | `references/competitor-data.csv` |
+| Agent C 참조문서 | 도메인 정책/제약 문서 경로 | `references/domain-policy.md` |
+| 디자인시스템 링크 | 팀 Figma 라이브러리 URL | Figma 링크 |
+
+### 3. 실행
+
+Claude Code에서:
 ```
-https://www.notion.so/myworkspace/338f330eead580fdb398edfa1abd0be2
-                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-                                   이 부분이 Database ID
-```
-
-### 3. MCP 서버 연결 (선택)
-
-| 연동 | 필요한 MCP 서버 |
-|------|----------------|
-| Notion 자동 읽기/저장 | Notion MCP |
-| Figma 디자인 컨텍스트 추출 | Figma MCP |
-
-## 사용 흐름
-
-```
-1. /archive setup       → 프로필 설정 (최초 1회)
-2. /archive             → 케이스 스터디 생성
-3. /archive jd:[링크]   → JD 맞춤 버전 생성 (지원할 때마다)
-4. /archive audit       → 포트폴리오 전체 점검 (케이스가 쌓이면)
+/design-draft [에픽 Notion URL 또는 문서 경로]
 ```
 
-## 출력 구조
+## 파일 설명
 
+| 파일 | 용도 | 커스텀 필요 |
+|------|------|------------|
+| `rules/design-draft.md` | AI 행동 규칙 + 워크플로우 정의 | O (데이터소스 경로) |
+| `references/design-draft-template.md` | 초안 아웃풋 마크다운 포맷 | △ (섹션 추가/삭제 가능) |
+| `references/ux-checklist.md` | 닐슨 휴리스틱 + UX 심리학 검증 기준 | X (공통) |
+| `references/domain-policy-example.md` | 도메인 정책 작성 예시 | O (자기 도메인으로 교체) |
+
+## 3-에이전트 프레임워크
+
+### Agent A — 디스커버리 분석
+에픽/디스커버리 문서에서 추출:
+- 비즈니스 목표
+- 타겟 사용자 & 시나리오
+- 성공 지표 (KPI)
+- 데이터 분석 결과
+
+### Agent B — 경쟁사/시장 분석
+경쟁사 데이터 기반 분석:
+- UX 패턴 벤치마크
+- 고객 Pain Point
+- 차별화 포인트
+
+### Agent C — 도메인 정책 검증
+도메인 제약조건 기반 검증:
+- 비즈니스 정책 준수 여부
+- 법적/규제 제약사항
+- UX 체크리스트 대조
+
+## 워크플로우 상세
+
+```mermaid
+graph TD
+    A["/design-draft 실행"] -->|Phase 1| B["Agent A: 디스커버리 분석"]
+    A -->|Phase 2| C["Agent B: 경쟁사 분석"]
+    A -->|Phase 3| D["Agent C: 도메인 검증"]
+    A -->|Phase 4| E["마크다운 초안 생성"]
+    E -->|리뷰 확정 후| F["Google Stitch 프롬프트 생성"]
+    F --> G["Stitch에서 멀티스크린 UI 생성"]
+    G --> H["Figma 내보내기 → 디테일 수정"]
+
+    style A fill:#4a9eed,color:#fff
+    style B fill:#f59e0b,color:#fff
+    style C fill:#f59e0b,color:#fff
+    style D fill:#f59e0b,color:#fff
+    style E fill:#22c55e,color:#fff
+    style F fill:#8b5cf6,color:#fff
+    style G fill:#8b5cf6,color:#fff
+    style H fill:#ec4899,color:#fff
+```
+
+## 인풋별 처리 가이드
+
+| 인풋 | 실행되는 에이전트 | 아웃풋 |
+|------|-----------------|--------|
+| 에픽/디스커버리 문서 | A → B → C (전체) | 디자인 초안 마크다운 |
+| 기존 Figma 화면 | B (경쟁사 대비 UX 크리틱) | 개선 리포트 |
+| 경쟁사 자료만 | B → C (벤치마크 + 차별점) | 벤치마크 리포트 |
+
+## 커스터마이징 가이드
+
+### 에이전트 추가/수정
+
+`design-draft.md`의 `3 에이전트 프레임워크` 섹션에서 에이전트를 추가하거나 역할을 수정할 수 있습니다.
+
+예시 — 접근성 전문 에이전트 추가:
 ```markdown
-# 프로젝트 제목
-
-## Overview
-역할 / 기간 / 팀 구성 / 사용 도구 / 프로젝트 유형
-
-## Problem
-## AS-IS → TO-BE
-## Process
-## Outcome
-## Reflection
+- **Agent D (접근성 검증)**: WCAG 2.1 AA 기준으로 초안의 접근성 이슈를 사전 점검
 ```
 
-## Export 옵션
+### 도메인 정책 문서 작성
 
-| 옵션 | 설명 |
-|------|------|
-| A. Notion | 지정한 Notion 데이터베이스에 페이지 자동 생성 |
-| B. Markdown | `.md` 파일로 저장 (PDF 변환 가능) |
-| C. 수정 요청 | 특정 섹션 수정, 톤 변경, 길이 조절 |
+`references/domain-policy-example.md`를 참고해서 자기 도메인의 정책/제약사항을 정리하세요.
 
-## 요구 사항
+### UX 체크리스트 확장
 
-- [Claude Code](https://claude.ai/code) 설치 필요
-- Figma 연동 시 Figma MCP 서버 인증 필요
-- Notion 연동 시 Notion MCP 서버 인증 필요
+`references/ux-checklist.md`에 팀 고유의 검증 항목을 추가할 수 있습니다.
 
-## 라이선스
+## FAQ
 
-MIT
+**Q: Claude Code 없이도 쓸 수 있나요?**
+A: `.claude/rules/` 구조는 Claude Code 전용입니다. 다른 AI 도구 사용 시 `design-draft.md` 내용을 시스템 프롬프트로 직접 전달하면 됩니다.
+
+**Q: Google Stitch 없이도 되나요?**
+A: 마크다운 초안까지는 Stitch 없이 생성 가능합니다. 이후 Figma에서 직접 와이어프레임을 그리면 됩니다.
+
+**Q: 경쟁사 데이터가 없으면요?**
+A: Agent B를 비활성화하거나, 간단한 벤치마크 URL 목록만 제공해도 동작합니다.
+
+---
+
+원본: 렌트리 Conversion Squad (김예운) — 2025.04
