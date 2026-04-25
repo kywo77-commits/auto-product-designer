@@ -1,6 +1,18 @@
-# 디자인 초안 자동화 키트
+# PD 업무 자동화 키트
 
-Claude Code를 활용해 **3-에이전트 프레임워크** 기반으로 와이어프레임 초안을 자동 생성하는 프로덕트 디자이너용 템플릿입니다.
+Claude Code를 활용한 프로덕트 디자이너용 업무 자동화 템플릿입니다.
+2가지 스킬을 제공합니다:
+
+| 스킬 | 하는 일 |
+|------|--------|
+| **디자인 초안 자동화** | 에픽/디스커버리 → 3-에이전트 분석 → 와이어프레임 초안 생성 |
+| **핸드오프 가이드 자동화** | Figma 코멘트 분석 → 개발 가이드 자동 생성 |
+
+---
+
+# 1. 디자인 초안 자동화
+
+3-에이전트 프레임워크 기반으로 와이어프레임 초안을 자동 생성합니다.
 
 ## 이 키트가 하는 일
 
@@ -141,6 +153,113 @@ A: 마크다운 초안까지는 Stitch 없이 생성 가능합니다. 이후 Fig
 
 **Q: 경쟁사 데이터가 없으면요?**
 A: Agent B를 비활성화하거나, 간단한 벤치마크 URL 목록만 제공해도 동작합니다.
+
+---
+
+# 2. 핸드오프 가이드 자동화
+
+Figma URL을 넣으면 → 코멘트를 자동 분류하고 → 개발팀용 가이드를 생성합니다.
+
+```
+인풋 (Figma URL + Notion URL)
+    ↓
+Figma REST API로 파일 구조 파악
+    ↓
+코멘트 수집 + 자동 분류 (정책확정/미결이슈/개발협의/QA)
+    ↓
+아웃풋 (Figma 분석 MD + 개발 가이드)
+```
+
+## 빠른 시작
+
+### 1. 파일 복사
+
+```
+your-project/
+├── .claude/
+│   └── rules/
+│       └── handoff-guide.md             ← ① 행동 규칙 (복사)
+├── references/
+│   ├── handoff-guide-template.md        ← ② 가이드 포맷 (복사)
+│   └── figma-analysis-example.md        ← ③ 분석 결과 예시 (참고용)
+└── .env                                 ← ④ FIGMA_API_TOKEN 설정
+```
+
+### 2. 커스터마이징 (필수)
+
+`handoff-guide.md`에서 아래 항목을 팀에 맞게 수정:
+
+| 항목 | 수정 내용 |
+|------|----------|
+| 코멘트 컨벤션 | 팀의 이모지/키워드 규칙 (✅, ❓ 등) |
+| 분류 규칙 | 키워드 → 카테고리 매핑 |
+| 핸드오프 페이지 식별 기준 | 페이지명 컨벤션 (예: 📌 이모지) |
+
+### 3. 실행
+
+```
+Figma URL을 Claude Code에 전달하고 "핸드오프 가이드 만들어줘" 요청
+```
+
+## 파일 설명
+
+| 파일 | 용도 | 커스텀 필요 |
+|------|------|------------|
+| `rules/handoff-guide.md` | AI 행동 규칙 + 코멘트 분류 규칙 | O (팀 컨벤션) |
+| `references/handoff-guide-template.md` | 개발 가이드 아웃풋 포맷 | △ (섹션 추가/삭제) |
+| `references/figma-analysis-example.md` | Figma 분석 결과 예시 | X (참고용) |
+
+## 워크플로우 상세
+
+```mermaid
+graph TD
+    A["Figma URL 입력"] --> B["Figma REST API로 구조 파악"]
+    B --> C["코멘트 수집 (resolved + unresolved)"]
+    C --> D["키워드 기반 자동 분류"]
+    D --> E["분석 결과 MD 저장"]
+    E --> F["개발 가이드 생성"]
+    F --> G{"Notion 연동?"}
+    G -->|Yes| H["Notion 페이지 생성"]
+    G -->|No| I["마크다운 파일 저장"]
+
+    style A fill:#4a9eed,color:#fff
+    style D fill:#f59e0b,color:#fff
+    style E fill:#22c55e,color:#fff
+    style F fill:#22c55e,color:#fff
+    style H fill:#8b5cf6,color:#fff
+```
+
+## 알려진 한계
+
+- 코멘트 분류는 키워드 기반 → 팀 컨벤션이 일관적일수록 정확도 상승
+- Figma 어노테이션 자동 배치는 Plugin 수동 실행 필요 (REST API 쓰기 불가)
+- 80% 자동 생성 + 20% 수동 보정이 현실적 목표
+
+## 사전 준비 팁
+
+1. **팀 코멘트 컨벤션부터 만들어라** — 자동 분류의 정확도는 팀의 코멘트 습관에 달려있다
+2. **Figma API 토큰 발급** — Figma > Settings > Personal access tokens
+3. **Notion MCP 연동** (선택) — 가이드를 Notion에 직접 생성하려면 필요
+
+---
+
+# 전체 파일 구조
+
+```
+your-project/
+├── .claude/
+│   └── rules/
+│       ├── design-draft.md              ← 디자인 초안 행동 규칙
+│       └── handoff-guide.md             ← 핸드오프 가이드 행동 규칙
+├── references/
+│   ├── design-draft-template.md         ← 초안 아웃풋 포맷
+│   ├── ux-checklist.md                  ← UX 검증 체크리스트 (공통)
+│   ├── domain-policy-example.md         ← 도메인 정책 작성 예시
+│   ├── handoff-guide-template.md        ← 개발 가이드 포맷
+│   └── figma-analysis-example.md        ← Figma 분석 예시
+├── outputs/                             ← 생성물 저장
+└── .env                                 ← API 토큰
+```
 
 ---
 
